@@ -1,0 +1,106 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    
+    function isFaculty() {
+      return isAuthenticated() && getUserRole() == 'faculty';
+    }
+    
+    function isStudent() {
+      return isAuthenticated() && getUserRole() == 'student';
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      // Users can read their own data
+      // Users can read their own data
+      // ALLOW PUBLIC READ FOR LOGIN LOOKUP (MVP Trade-off) - In production, use Cloud Functions for lookups
+      allow read: if true;
+      
+      // Allow creation during registration (before authentication)
+      allow create: if true;
+      
+      // Only the user can update their own profile (limited fields)
+      allow update: if isOwner(userId) &&
+                       !request.resource.data.diff(resource.data)
+                       .affectedKeys().hasAny(['role', 'identifier', 'emailVerified', 'mobileVerified', 'documentVerified', 'approvalStatus']);
+      
+      // Don't allow delete
+      allow delete: if false;
+    }
+    
+    // Verification requests
+    match /verification_requests/{requestId} {
+      // Faculty can read all requests
+      allow read: if isFaculty();
+      
+      // Users can read their own requests
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      
+      // Allow creation for new registrations
+      allow create: if true;
+      
+      // Only faculty can update (for approval/rejection)
+      allow update: if isFaculty();
+      
+      allow delete: if false;
+    }
+    
+    // OTP sessions
+    match /otp_sessions/{sessionId} {
+      // Allow creation for OTP generation
+      allow create: if true;
+      
+      // Allow read/update for verification
+      allow read, update: if true;
+      
+      // Auto-delete after use
+      allow delete: if true;
+    }
+    
+    // Items collection (lost & found items)
+    match /items/{itemId} {
+      // Anyone authenticated can read items
+      allow read: if isAuthenticated();
+      
+      // Students can create items
+      allow create: if isStudent() && 
+                       request.resource.data.reportedBy == request.auth.uid;
+      
+      // Users can update their own items, faculty can update any
+      allow update: if isOwner(resource.data.reportedBy) || isFaculty();
+      
+      // Only item owner can delete
+      allow delete: if isOwner(resource.data.reportedBy);
+    }
+    
+    // Claims collection
+    match /claims/{claimId} {
+      // Users can read their own claims, faculty can read all
+      allow read: if isOwner(resource.data.claimantId) || isFaculty();
+      
+      // Students can create claims
+      allow create: if isStudent() && 
+                       request.resource.data.claimantId == request.auth.uid;
+      
+      // Faculty can update claims (for verification), claimants can update their own
+      allow update: if isFaculty() || isOwner(resource.data.claimantId);
+      
+      // Only claimant can delete
+      allow delete: if isOwner(resource.data.claimantId);
+    }
+  }
+}
