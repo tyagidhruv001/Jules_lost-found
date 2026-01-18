@@ -1,8 +1,8 @@
 // Direct Cloudinary Upload Service (No Cloud Functions Required)
 // This uses unsigned upload presets for quick setup
 
-const CLOUDINARY_CLOUD_NAME = 'dbjx1evqx';
-const CLOUDINARY_UPLOAD_PRESET = 'lost_found_unsigned'; // You'll create this in Cloudinary
+const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dbjx1evqx';
+const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'lost_found_unsigned';
 
 /**
  * Upload image directly to Cloudinary
