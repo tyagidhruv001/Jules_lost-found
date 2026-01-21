@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Layout } from '../../components/layout/Layout';
-import { api } from '../../services/api';
-import { Search, Filter, X, ChevronDown, MessageSquare } from 'lucide-react';
+import { getItems } from '../../services/items.service';
+import { Search, Filter, X, ChevronDown, MessageSquare, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const ItemSearch = () => {
@@ -18,10 +18,29 @@ const ItemSearch = () => {
     const loadItems = useCallback(async () => {
         setIsLoading(true);
         try {
-            const data = await api.getItems({ ...filters, search });
-            setItems(data);
+            // Build filters object
+            const queryFilters = {};
+            if (filters.type) queryFilters.type = filters.type;
+            if (filters.category) queryFilters.category = filters.category;
+            if (filters.status) queryFilters.status = filters.status;
+
+            const data = await getItems(queryFilters);
+
+            // Client-side search filtering
+            let filteredData = data;
+            if (search) {
+                const searchLower = search.toLowerCase();
+                filteredData = data.filter(item =>
+                    item.title?.toLowerCase().includes(searchLower) ||
+                    item.description?.toLowerCase().includes(searchLower) ||
+                    item.location?.toLowerCase().includes(searchLower)
+                );
+            }
+
+            setItems(filteredData);
         } catch (err) {
-            console.error(err);
+            console.error('Search error:', err);
+            setItems([]);
         } finally {
             setIsLoading(false);
         }
@@ -140,7 +159,9 @@ const ItemSearch = () => {
                                                 }`}>
                                                 {item.status}
                                             </span>
-                                            <span className="text-[10px] font-bold text-slate-400">{item.date}</span>
+                                            <span className="text-[10px] font-bold text-slate-400">
+                                                {item.createdAt?.toDate ? new Date(item.createdAt.toDate()).toLocaleDateString() : 'Recently'}
+                                            </span>
                                         </div>
                                     </div>
                                 </Link>

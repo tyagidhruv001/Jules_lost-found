@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../../components/layout/Layout';
-import { api } from '../../services/api';
+import { createItem, uploadItemImages } from '../../services/items.service';
 import { useAuth } from '../../context/AuthContext';
 import {
     Info, Camera, MapPin, CheckCircle,
@@ -15,21 +15,57 @@ const ReportWizard = () => {
         title: '',
         category: 'Electronics',
         location: '',
+        lastTimeSeen: '',
         color: '',
         description: '',
-        images: ['https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=400']
+        imageFiles: [],
+        images: []
     });
+    const [error, setError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { user } = useAuth();
     const navigate = useNavigate();
 
+    const handleImageSelect = (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length > 0) {
+            setFormData(prev => ({ ...prev, imageFiles: files }));
+
+            // Create preview URLs
+            const previews = files.map(file => URL.createObjectURL(file));
+            setFormData(prev => ({ ...prev, images: previews }));
+        }
+    };
+
     const handleSubmit = async () => {
         setIsSubmitting(true);
+        setError('');
         try {
-            await api.createItem({ ...formData, reportedBy: user.id });
+            console.log('Starting report submission...');
+
+            // Upload images to Cloudinary first
+            let imageUrls = [];
+            if (formData.imageFiles.length > 0) {
+                console.log('Uploading images to Cloudinary...');
+                imageUrls = await uploadItemImages(formData.imageFiles);
+                console.log('Images uploaded:', imageUrls);
+            }
+
+            // Create item in Firestore
+            console.log('Creating item in Firestore...');
+            const result = await createItem(
+                {
+                    ...formData,
+                    images: imageUrls
+                },
+                user
+            );
+            console.log('Item created successfully:', result);
+
             setStep(4); // Success Step
         } catch (err) {
-            console.error(err);
+            console.error('Report submission error:', err);
+            setError(err.message || 'Failed to submit report');
         } finally {
             setIsSubmitting(false);
         }
@@ -116,17 +152,28 @@ const ReportWizard = () => {
                         <div className="p-10 space-y-8 animate-slide-right flex-1 flex flex-col">
                             <div className="space-y-6">
                                 <h4 className="text-xs font-black uppercase tracking-widest text-blue-600 flex items-center gap-2">
-                                    <MapPin size={14} /> Step 02: Spatial Context
+                                    <MapPin size={14} /> Step 02: Spatial & Temporal Context
                                 </h4>
                                 <div className="space-y-2">
-                                    <label className="label">Observed Location</label>
-                                    <select
+                                    <label className="label">Location</label>
+                                    <input
+                                        type="text"
                                         className="input w-full"
-                                        value={formData.location} onChange={e => setFormData(p => ({ ...p, location: e.target.value }))}
-                                    >
-                                        <option value="">Select Pickup/Drop Point</option>
-                                        {locations.map(l => <option key={l} value={l}>{l}</option>)}
-                                    </select>
+                                        placeholder="e.g. Library 2nd Floor, Near Cafeteria"
+                                        value={formData.location}
+                                        onChange={e => setFormData(p => ({ ...p, location: e.target.value }))}
+                                    />
+                                    <p className="text-[10px] text-slate-500 font-medium">Be as specific as possible</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="label">Last Time Seen</label>
+                                    <input
+                                        type="datetime-local"
+                                        className="input w-full"
+                                        value={formData.lastTimeSeen}
+                                        onChange={e => setFormData(p => ({ ...p, lastTimeSeen: e.target.value }))}
+                                    />
+                                    <p className="text-[10px] text-slate-500 font-medium">When did you last see this item?</p>
                                 </div>
                                 <div className="space-y-2">
                                     <label className="label">External Color Detail</label>
@@ -156,22 +203,63 @@ const ReportWizard = () => {
                                 <h4 className="text-xs font-black uppercase tracking-widest text-blue-600 flex items-center gap-2">
                                     <Camera size={14} /> Step 03: Visual Confirmation
                                 </h4>
-                                <div className="aspect-video bg-slate-50 dark:bg-slate-950/50 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center p-8 text-center">
-                                    <div className="w-16 h-16 bg-blue-600/10 text-blue-600 rounded-full flex items-center justify-center mb-4">
-                                        <Camera size={32} />
+
+                                {formData.images.length === 0 ? (
+                                    <div className="aspect-video bg-slate-50 dark:bg-slate-950/50 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center p-8 text-center">
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            multiple
+                                            onChange={handleImageSelect}
+                                            className="hidden"
+                                            id="image-upload"
+                                        />
+                                        <label htmlFor="image-upload" className="cursor-pointer flex flex-col items-center">
+                                            <div className="w-16 h-16 bg-blue-600/10 text-blue-600 rounded-full flex items-center justify-center mb-4">
+                                                <Camera size={32} />
+                                            </div>
+                                            <p className="text-sm font-bold">Click to Upload Images</p>
+                                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Add up to 5 photos</p>
+                                        </label>
                                     </div>
-                                    <p className="text-sm font-bold">Image Processing Enabled</p>
-                                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Automatic upload simulated</p>
-                                </div>
+                                ) : (
+                                    <div>
+                                        <div className="grid grid-cols-3 gap-4 mb-4">
+                                            {formData.images.map((img, idx) => (
+                                                <div key={idx} className="aspect-square rounded-2xl overflow-hidden border-2 border-blue-600/20">
+                                                    <img src={img} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            multiple
+                                            onChange={handleImageSelect}
+                                            className="hidden"
+                                            id="image-reupload"
+                                        />
+                                        <label htmlFor="image-reupload" className="text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer uppercase tracking-widest">
+                                            Change Images
+                                        </label>
+                                    </div>
+                                )}
+
                                 <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-3xl border border-blue-600/10">
                                     <h5 className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-2">Integrity Confirmation</h5>
                                     <p className="text-xs text-slate-600 dark:text-slate-400 font-medium italic">"I confirm that the details provided are accurate. I understand that misreporting is a violation of University Protocol."</p>
                                 </div>
+
+                                {error && (
+                                    <div className="p-4 rounded-xl bg-red-500/20 border border-red-500/50 text-red-200 text-sm">
+                                        {error}
+                                    </div>
+                                )}
                             </div>
                             <div className="mt-auto pt-10 flex gap-4 border-t border-slate-100 dark:border-slate-800">
                                 <button onClick={() => setStep(2)} className="btn bg-slate-100 dark:bg-slate-800 font-black uppercase tracking-widest px-8">Back</button>
-                                <button onClick={handleSubmit} className="btn btn-primary flex-1 py-4 font-black uppercase tracking-widest shadow-xl shadow-blue-500/20 flex items-center justify-center gap-3">
-                                    <Send size={20} /> Publish Report
+                                <button onClick={handleSubmit} disabled={isSubmitting} className="btn btn-primary flex-1 py-4 font-black uppercase tracking-widest shadow-xl shadow-blue-500/20 flex items-center justify-center gap-3 disabled:opacity-50">
+                                    <Send size={20} /> {isSubmitting ? 'Publishing...' : 'Publish Report'}
                                 </button>
                             </div>
                         </div>
@@ -192,7 +280,7 @@ const ReportWizard = () => {
                     )}
                 </div>
             </div>
-        </Layout>
+        </Layout >
     );
 };
 

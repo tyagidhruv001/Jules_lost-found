@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Mail, Phone, Calendar, CreditCard, Building, ArrowLeft, Edit2, Save, X } from 'lucide-react';
+import { User, Mail, Phone, Calendar, CreditCard, Building, ArrowLeft, Edit2, Save, X, Camera, Trash2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getUserProfile, updateUserProfile, uploadUserDocuments } from '../../services/user.service';
 import DocumentUpload from '../../components/auth/DocumentUpload';
 
 const UserProfile = () => {
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, refreshUser } = useAuth();
     const [profile, setProfile] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [editData, setEditData] = useState({});
+    const [localPreview, setLocalPreview] = useState(null);
+    const fileInputRef = React.useRef(null);
 
     useEffect(() => {
         loadProfile();
@@ -34,27 +36,62 @@ const UserProfile = () => {
         }
     };
 
+    const isPhotoDirty = !!(editData.newPhoto || editData.removePhoto);
+
+    const handlePhotoSelect = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setEditData(prev => ({ ...prev, newPhoto: file, removePhoto: false }));
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setLocalPreview(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handlePhotoDelete = () => {
+        setEditData(prev => ({ ...prev, newPhoto: null, removePhoto: true }));
+        setLocalPreview('DELETE');
+    };
+
+    const handleCancelPhoto = () => {
+        setEditData(prev => ({ ...prev, newPhoto: null, removePhoto: false }));
+        setLocalPreview(null);
+    };
+
     const handleSave = async () => {
         try {
             setSaving(true);
             setError('');
+            console.log('Starting photo save...', { hasNewPhoto: !!editData.newPhoto, shouldRemove: !!editData.removePhoto });
 
             // Upload photo if changed
             if (editData.newPhoto) {
-                await uploadUserDocuments(user.uid, null, editData.newPhoto);
+                console.log('Uploading new photo to Cloudinary...');
+                const result = await uploadUserDocuments(user.uid, null, editData.newPhoto);
+                console.log('Upload successful:', result);
+            } else if (editData.removePhoto) {
+                console.log('Removing profile photo from Firestore...');
+                await updateUserProfile(user.uid, {
+                    profilePhotoUrl: null,
+                    profilePhotoPublicId: null
+                });
+                console.log('Photo removed successfully');
             }
 
-            await updateUserProfile(user.uid, {
-                name: editData.name,
-                mobile: editData.mobile,
-                dateOfBirth: editData.dateOfBirth
-            });
-
-            // Refresh profile
+            // Refresh profile on this page
+            console.log('Refreshing profile data...');
             await loadProfile();
-            setIsEditing(false);
+            // Refresh user context to update sidebar avatar
+            console.log('Refreshing auth context...');
+            await refreshUser();
+            setLocalPreview(null);
+            setEditData({});
+            console.log('Profile update complete!');
         } catch (err) {
-            setError('Failed to update profile');
+            console.error('Profile update error:', err);
+            setError('Failed to update profile: ' + (err.message || 'Unknown error'));
         } finally {
             setSaving(false);
         }
@@ -85,34 +122,25 @@ const UserProfile = () => {
                 {/* Profile Card */}
                 <div className="bg-white/10 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/20">
                     <div className="flex items-center justify-between mb-8">
-                        <h1 className="text-3xl font-bold text-white">My Profile</h1>
-                        {!isEditing ? (
-                            <button
-                                onClick={() => setIsEditing(true)}
-                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 text-white hover:bg-cyan-600 transition-all"
-                            >
-                                <Edit2 size={18} />
-                                Edit Profile
-                            </button>
-                        ) : (
-                            <div className="flex gap-2">
+                        <div>
+                            <h1 className="text-3xl font-bold text-white">My Profile</h1>
+                            <p className="text-xs text-white/40 mt-1 uppercase tracking-widest font-black">Verified Identity</p>
+                        </div>
+                        {isPhotoDirty && (
+                            <div className="flex gap-2 animate-fade-in">
                                 <button
-                                    onClick={() => {
-                                        setIsEditing(false);
-                                        setEditData(profile);
-                                    }}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 text-white hover:bg-white/10 transition-all"
+                                    onClick={handleCancelPhoto}
+                                    className="px-4 py-2 rounded-xl bg-white/5 text-white hover:bg-white/10 transition-all text-xs font-bold"
                                 >
-                                    <X size={18} />
                                     Cancel
                                 </button>
                                 <button
                                     onClick={handleSave}
                                     disabled={saving}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500 text-white hover:bg-green-600 transition-all disabled:opacity-50"
+                                    className="flex items-center gap-2 px-6 py-2 rounded-xl bg-green-500 text-white hover:bg-green-600 transition-all disabled:opacity-50 text-xs font-bold shadow-lg shadow-green-500/20"
                                 >
-                                    <Save size={18} />
-                                    {saving ? 'Saving...' : 'Save'}
+                                    <Save size={16} />
+                                    {saving ? 'Saving...' : 'Save Changes'}
                                 </button>
                             </div>
                         )}
@@ -126,24 +154,46 @@ const UserProfile = () => {
 
                     {/* Profile Photo Section */}
                     <div className="flex flex-col items-center mb-8">
-                        <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white/20 mb-4 bg-white/5 flex items-center justify-center">
-                            {profile?.profilePhotoUrl ? (
-                                <img src={profile.profilePhotoUrl} alt="Profile" className="w-full h-full object-cover" />
-                            ) : (
-                                <User size={64} className="text-white/20" />
-                            )}
-                        </div>
-
-                        {isEditing && (
-                            <div className="w-full max-w-xs">
-                                <DocumentUpload
-                                    label="Update Profile Photo"
-                                    onUpload={(file) => setEditData(prev => ({ ...prev, newPhoto: file }))}
-                                    accept="image/*"
-                                    preview={false}
-                                />
+                        <div className="relative group">
+                            <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white/20 bg-white/5 flex items-center justify-center">
+                                {localPreview === 'DELETE' ? (
+                                    <User size={64} className="text-white/20" />
+                                ) : localPreview ? (
+                                    <img src={localPreview} alt="Preview" className="w-full h-full object-cover" />
+                                ) : profile?.profilePhotoUrl ? (
+                                    <img src={profile.profilePhotoUrl} alt="Profile" className="w-full h-full object-cover" />
+                                ) : (
+                                    <User size={64} className="text-white/20" />
+                                )}
                             </div>
-                        )}
+
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handlePhotoSelect}
+                                accept="image/*"
+                                className="hidden"
+                            />
+                            <div className="absolute bottom-0 right-0 flex gap-1">
+                                {((localPreview && localPreview !== 'DELETE') || (!localPreview && profile?.profilePhotoUrl)) ? (
+                                    <button
+                                        onClick={handlePhotoDelete}
+                                        className="p-1.5 rounded-full bg-red-500 text-white shadow-lg hover:bg-red-600 transition-all border-2 border-slate-900"
+                                        title="Remove Photo"
+                                    >
+                                        <Trash2 size={12} />
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="p-1.5 rounded-full bg-cyan-500 text-white shadow-lg hover:bg-cyan-600 transition-all border-2 border-slate-900"
+                                        title="Upload Photo"
+                                    >
+                                        <Camera size={12} />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-6">
@@ -153,51 +203,9 @@ const UserProfile = () => {
                                 <User size={16} />
                                 Full Name
                             </label>
-                            {isEditing ? (
-                                <input
-                                    type="text"
-                                    value={editData.name || ''}
-                                    onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-                                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-300/50 focus:outline-none focus:ring-2 focus:ring-cyan-300/20"
-                                />
-                            ) : (
-                                <div className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white">
-                                    {profile?.name || 'Not set'}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Email */}
-                        <div>
-                            <label className="flex items-center gap-2 text-sm font-medium text-white/60 mb-2">
-                                <Mail size={16} />
-                                University Email
-                            </label>
-                            <div className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/60">
-                                {profile?.universityEmail || profile?.email || 'Not set'}
+                            <div className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white">
+                                {profile?.name || 'Not set'}
                             </div>
-                            <p className="text-xs text-white/40 mt-1">Cannot be changed</p>
-                        </div>
-
-                        {/* Mobile */}
-                        <div>
-                            <label className="flex items-center gap-2 text-sm font-medium text-white/60 mb-2">
-                                <Phone size={16} />
-                                Mobile Number
-                            </label>
-                            {isEditing ? (
-                                <input
-                                    type="tel"
-                                    value={editData.mobile || ''}
-                                    onChange={(e) => setEditData({ ...editData, mobile: e.target.value })}
-                                    maxLength={10}
-                                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-300/50 focus:outline-none focus:ring-2 focus:ring-cyan-300/20"
-                                />
-                            ) : (
-                                <div className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white">
-                                    {profile?.mobile || 'Not set'}
-                                </div>
-                            )}
                         </div>
 
                         {/* Date of Birth */}
@@ -206,45 +214,52 @@ const UserProfile = () => {
                                 <Calendar size={16} />
                                 Date of Birth
                             </label>
-                            {isEditing ? (
-                                <input
-                                    type="date"
-                                    value={editData.dateOfBirth || ''}
-                                    onChange={(e) => setEditData({ ...editData, dateOfBirth: e.target.value })}
-                                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-300/50 focus:outline-none focus:ring-2 focus:ring-cyan-300/20"
-                                />
-                            ) : (
-                                <div className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white">
-                                    {profile?.dateOfBirth || 'Not set'}
-                                </div>
-                            )}
+                            <div className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white">
+                                {profile?.dateOfBirth || 'Not set'}
+                            </div>
                         </div>
 
-                        {/* Roll Number/Faculty ID */}
+                        {/* Mobile Number */}
+                        <div>
+                            <label className="flex items-center gap-2 text-sm font-medium text-white/60 mb-2">
+                                <Phone size={16} />
+                                Mobile Number
+                            </label>
+                            <div className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white">
+                                {profile?.mobile || 'Not set'}
+                            </div>
+                        </div>
+
+                        {/* Personal Email */}
+                        <div>
+                            <label className="flex items-center gap-2 text-sm font-medium text-white/60 mb-2">
+                                <Mail size={16} />
+                                Personal Email
+                            </label>
+                            <div className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white truncate">
+                                {profile?.personalEmail || profile?.email || 'Not set'}
+                            </div>
+                        </div>
+
+                        {/* Identifier */}
                         <div>
                             <label className="flex items-center gap-2 text-sm font-medium text-white/60 mb-2">
                                 <CreditCard size={16} />
-                                {profile?.role === 'student' ? 'Roll Number' : 'Faculty ID'}
+                                {profile?.role === 'student' ? 'University Roll Number' : 'Faculty ID'}
                             </label>
-                            <div className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/60">
+                            <div className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white">
                                 {profile?.identifier || 'Not set'}
                             </div>
-                            <p className="text-xs text-white/40 mt-1">Cannot be changed</p>
                         </div>
 
-                        {/* Role */}
+                        {/* University Email */}
                         <div>
                             <label className="flex items-center gap-2 text-sm font-medium text-white/60 mb-2">
                                 <Building size={16} />
-                                Role
+                                University Email
                             </label>
-                            <div className="px-4 py-3 rounded-xl bg-white/5 border border-white/10">
-                                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${profile?.role === 'student'
-                                    ? 'bg-cyan-500/20 text-cyan-300'
-                                    : 'bg-purple-500/20 text-purple-300'
-                                    }`}>
-                                    {profile?.role === 'student' ? '🎓 Student' : '👨‍🏫 Faculty'}
-                                </span>
+                            <div className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white truncate">
+                                {profile?.universityEmail || 'Not set'}
                             </div>
                         </div>
                     </div>

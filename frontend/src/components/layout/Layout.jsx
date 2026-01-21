@@ -18,6 +18,7 @@ export const Layout = ({ children }) => {
         { to: '/student/search', icon: <Search size={20} />, label: 'Search' },
         { to: '/student/report', icon: <PlusCircle size={20} />, label: 'Report' },
         { to: '/student/activity', icon: <User size={20} />, label: 'My Activity' },
+        { to: '/student/profile', icon: <Shield size={20} />, label: 'My Profile' },
     ];
 
     const facultyLinks = [
@@ -25,6 +26,7 @@ export const Layout = ({ children }) => {
         { to: '/faculty/verify', icon: <ShieldCheck size={20} />, label: 'Verify Queue' },
         { to: '/faculty/items-queue', icon: <User size={20} />, label: 'Items Queue' },
         { to: '/faculty/search', icon: <Search size={20} />, label: 'Search All' },
+        { to: '/faculty/profile', icon: <Shield size={20} />, label: 'My Profile' },
     ];
 
     const links = user.role === 'student' ? studentLinks : facultyLinks;
@@ -78,10 +80,14 @@ export const Layout = ({ children }) => {
 
                 <div className="p-8 border-t border-white/10 space-y-6">
                     <div className="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/10">
-                        <img src={`https://ui-avatars.com/api/?name=${user.name}&background=0ea5e9&color=fff&bold=true`} className="w-10 h-10 rounded-xl" alt="" />
+                        {user?.profilePhotoUrl ? (
+                            <img src={user.profilePhotoUrl} className="w-10 h-10 rounded-xl object-cover" alt={user?.name || 'User'} />
+                        ) : (
+                            <img src={`https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=0ea5e9&color=fff&bold=true`} className="w-10 h-10 rounded-xl" alt="" />
+                        )}
                         <div className="flex-1 overflow-hidden">
-                            <h4 className="font-black text-xs uppercase tracking-tight truncate text-white">{user.name}</h4>
-                            <p className="text-[9px] text-cyan-400 font-black uppercase tracking-widest mt-0.5">{user.role}</p>
+                            <h4 className="font-black text-xs uppercase tracking-tight truncate text-white">{user?.name || 'Unknown User'}</h4>
+                            <p className="text-[9px] text-cyan-400 font-black uppercase tracking-widest mt-0.5">{user?.role || 'Guest'}</p>
                         </div>
                     </div>
                     <button onClick={handleLogout} className="flex items-center gap-3 px-6 py-3 w-full text-red-400 text-[10px] font-black uppercase tracking-widest hover:bg-red-500/10 rounded-xl transition-all">
@@ -152,11 +158,11 @@ export const Layout = ({ children }) => {
                         <div className="h-10 w-[1px] bg-white/10 mx-2"></div>
                         <div className="flex items-center gap-3 pl-2 text-white">
                             <div className="text-right">
-                                <p className="text-[10px] font-black uppercase tracking-tight text-white">{user.name}</p>
-                                <p className="text-[8px] font-black uppercase tracking-widest text-cyan-400">ID: {user.identifier.slice(-4)}</p>
+                                <p className="text-[10px] font-black uppercase tracking-tight text-white">{user?.name || 'User'}</p>
+                                <p className="text-[8px] font-black uppercase tracking-widest text-cyan-400">ID: {user?.identifier?.slice(-4) || '....'}</p>
                             </div>
                             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center text-white text-xs font-black">
-                                {user.name.charAt(0)}
+                                {user?.name?.charAt(0) || '?'}
                             </div>
                         </div>
                     </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Layout } from '../../components/layout/Layout';
-import { api } from '../../services/api';
+import { getItems } from '../../services/items.service';
 import { useAuth } from '../../context/AuthContext';
 import { FileText, MessageSquare, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -16,20 +16,23 @@ const MyActivity = () => {
         const loadData = async () => {
             setIsLoading(true);
             try {
-                const [userReports, userClaims] = await Promise.all([
-                    api.getMyReports(user.id),
-                    api.getMyClaims(user.id)
-                ]);
+                // Fetch user's reports
+                const allItems = await getItems();
+                const userReports = allItems.filter(item => item.reportedBy?.uid === user?.uid);
                 setReports(userReports);
-                setClaims(userClaims);
+
+                // Claims feature not implemented yet
+                setClaims([]);
             } catch (err) {
-                console.error(err);
+                console.error('Activity error:', err);
             } finally {
                 setIsLoading(false);
             }
         };
-        loadData();
-    }, [user.id]);
+        if (user?.uid) {
+            loadData();
+        }
+    }, [user?.uid]);
 
     return (
         <Layout>
@@ -76,7 +79,9 @@ const MyActivity = () => {
                                                 </span>
                                                 <h4 className="font-extrabold text-sm uppercase tracking-tight">{report.title}</h4>
                                             </div>
-                                            <p className="text-[10px] font-black text-slate-400 tracking-widest uppercase">{report.location} • {report.date}</p>
+                                            <p className="text-[10px] font-black text-slate-400 tracking-widest uppercase">
+                                                {report.location} • {report.createdAt?.toDate ? new Date(report.createdAt.toDate()).toLocaleDateString() : 'Recently'}
+                                            </p>
                                         </div>
                                     </div>
                                     <div className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${report.status === 'open' ? 'border-emerald-500/20 text-emerald-600 bg-emerald-500/5' : 'border-slate-500/20 text-slate-500'
@@ -102,8 +107,8 @@ const MyActivity = () => {
                                         </div>
                                     </div>
                                     <div className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${claim.status === 'approved' ? 'border-emerald-500/20 text-emerald-600 bg-emerald-500/5' :
-                                            claim.status === 'pending' ? 'border-amber-500/20 text-amber-500 bg-amber-500/5' :
-                                                'border-red-500/20 text-red-500 bg-red-500/5'
+                                        claim.status === 'pending' ? 'border-amber-500/20 text-amber-500 bg-amber-500/5' :
+                                            'border-red-500/20 text-red-500 bg-red-500/5'
                                         }`}>
                                         {claim.status === 'approved' ? <CheckCircle size={12} /> : claim.status === 'pending' ? <Clock size={12} /> : <XCircle size={12} />}
                                         {claim.status}

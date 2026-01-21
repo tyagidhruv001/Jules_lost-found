@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
     Calendar, MapPin, Tag, User,
     MessageCircle, Shield, ArrowLeft,
-    CheckCircle, Clock, AlertTriangle, Send
+    CheckCircle, Clock, AlertTriangle, Send, Package
 } from 'lucide-react';
 
 const ItemDetails = () => {
@@ -57,6 +57,8 @@ const ItemDetails = () => {
 
     if (isLoading) return <Layout><div className="flex items-center justify-center h-full"><div className="spinner"></div></div></Layout>;
 
+    if (!item) return <Layout><div className="flex items-center justify-center h-full"><p>Item not found</p></div></Layout>;
+
     return (
         <Layout>
             <div className="max-w-6xl mx-auto pb-20 animate-fade-in">
@@ -68,7 +70,13 @@ const ItemDetails = () => {
                     {/* Left: Visuals */}
                     <div className="space-y-6">
                         <div className="aspect-square bg-white dark:bg-slate-900 rounded-[2.5rem] overflow-hidden shadow-2xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800 p-4">
-                            <img src={item.images[0]} alt={item.title} className="w-full h-full object-cover rounded-[1.5rem]" />
+                            {item.images && item.images.length > 0 ? (
+                                <img src={item.images[0]} alt={item.title} className="w-full h-full object-cover rounded-[1.5rem]" />
+                            ) : (
+                                <div className="w-full h-full bg-slate-100 dark:bg-slate-800 rounded-[1.5rem] flex items-center justify-center">
+                                    <Package size={80} className="text-slate-400" />
+                                </div>
+                            )}
                         </div>
                         <div className="grid grid-cols-4 gap-4">
                             {[1, 2, 3, 4].map(i => (

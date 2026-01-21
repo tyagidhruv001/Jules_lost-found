@@ -68,7 +68,7 @@ export const uploadUserDocuments = async (userId, idCardFile, profilePhotoFile) 
         if (idCardFile) {
             const idCardResult = await uploadImageDirect(
                 idCardFile,
-                `users / ${userId}/documents`
+                `users/${userId}/documents`
             );
             uploads.idCardUrl = idCardResult.url;
             uploads.idCardPublicId = idCardResult.publicId;

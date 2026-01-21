@@ -12,14 +12,18 @@ service cloud.firestore {
     }
     
     function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      // Safely get user role, return null if document doesn't exist
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc != null && userDoc.data != null ? userDoc.data.role : null;
     }
     
     function isFaculty() {
+      // Check if authenticated and role is faculty
       return isAuthenticated() && getUserRole() == 'faculty';
     }
     
     function isStudent() {
+      // Check if authenticated and role is student
       return isAuthenticated() && getUserRole() == 'student';
     }
     
@@ -76,15 +80,15 @@ service cloud.firestore {
       // Anyone authenticated can read items
       allow read: if isAuthenticated();
       
-      // Students can create items
-      allow create: if isStudent() && 
-                       request.resource.data.reportedBy == request.auth.uid;
+      // Students and faculty can create items
+      allow create: if isAuthenticated() && 
+                       request.resource.data.reportedBy.uid == request.auth.uid;
       
       // Users can update their own items, faculty can update any
-      allow update: if isOwner(resource.data.reportedBy) || isFaculty();
+      allow update: if (isAuthenticated() && resource.data.reportedBy.uid == request.auth.uid) || isFaculty();
       
       // Only item owner can delete
-      allow delete: if isOwner(resource.data.reportedBy);
+      allow delete: if isAuthenticated() && resource.data.reportedBy.uid == request.auth.uid;
     }
     
     // Claims collection

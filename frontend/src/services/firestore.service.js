@@ -250,8 +250,9 @@ export const getPendingClaims = async () => {
         const claimsRef = collection(db, COLLECTIONS.CLAIMS);
         const q = query(
             claimsRef,
-            where('status', '==', 'pending'),
-            orderBy('createdAt', 'desc')
+            where('status', '==', 'pending')
+            // NOTE: Removed orderBy to avoid composite index requirement
+            // Will sort in JavaScript instead
         );
 
         const querySnapshot = await getDocs(q);
@@ -266,6 +267,13 @@ export const getPendingClaims = async () => {
             });
         });
 
+        // Sort in memory by createdAt (newest first)
+        claims.sort((a, b) => {
+            const aTime = a.createdAt || new Date(0);
+            const bTime = b.createdAt || new Date(0);
+            return bTime - aTime; // Descending order (newest first)
+        });
+
         return claims;
     } catch (error) {
         console.error('Error fetching pending claims:', error);
@@ -276,13 +284,40 @@ export const getPendingClaims = async () => {
 // Verify/Reject claim (faculty action)
 export const verifyClaim = async (claimId, decision, note) => {
     try {
+        // Get the claim to find the associated item
         const claimRef = doc(db, COLLECTIONS.CLAIMS, claimId);
+        const claimDoc = await getDoc(claimRef);
+
+        if (!claimDoc.exists()) {
+            throw new Error('Claim not found');
+        }
+
+        const claimData = claimDoc.data();
+        const itemId = claimData.itemId;
+
+        // Update the claim status
         await updateDoc(claimRef, {
             status: decision, // 'approved' or 'rejected'
             verificationNote: note,
             verifiedAt: serverTimestamp(),
             updatedAt: serverTimestamp()
         });
+
+        // Update the item status based on decision
+        if (itemId) {
+            const itemRef = doc(db, COLLECTIONS.ITEMS, itemId);
+
+            if (decision === 'approved') {
+                // Mark item as claimed
+                await updateDoc(itemRef, {
+                    status: 'claimed',
+                    claimedBy: claimData.claimantId,
+                    claimedAt: serverTimestamp(),
+                    updatedAt: serverTimestamp()
+                });
+            }
+            // If rejected, item stays active (no update needed)
+        }
 
         return { success: true };
     } catch (error) {

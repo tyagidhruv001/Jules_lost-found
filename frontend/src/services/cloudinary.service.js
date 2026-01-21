@@ -26,7 +26,13 @@ export const uploadImageDirect = async (file, folder = 'lost-found') => {
         );
 
         if (!response.ok) {
-            throw new Error('Upload failed');
+            const errorData = await response.json().catch(() => ({}));
+            console.error('Cloudinary upload failed:', {
+                status: response.status,
+                statusText: response.statusText,
+                error: errorData
+            });
+            throw new Error(errorData.error?.message || `Upload failed with status ${response.status}`);
         }
 
         const data = await response.json();

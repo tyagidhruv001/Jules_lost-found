@@ -1,5 +1,10 @@
 # GLA Lost & Found Portal
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![React](https://img.shields.io/badge/React-18+-blue.svg)](https://reactjs.org/)
+[![Firebase](https://img.shields.io/badge/Firebase-10+-orange.svg)](https://firebase.google.com/)
+[![Vite](https://img.shields.io/badge/Vite-5+-purple.svg)](https://vitejs.dev/)
+
 A modern, secure lost and found management system for GLA University with glassmorphism UI, Firebase backend, and Cloudinary image storage.
 
 ## 🚀 Quick Start
@@ -144,14 +149,65 @@ firebase deploy --only firestore:rules
 - Document OCR verification not implemented (manual review)
 - Faculty verification dashboard pending
 
+## 🔧 Troubleshooting
+
+### Build Errors
+**Issue**: `Module not found` errors
+```bash
+# Solution: Clear cache and reinstall
+rm -rf node_modules package-lock.json
+npm install
+```
+
+**Issue**: Vite build fails
+```bash
+# Solution: Check Node version (requires 18+)
+node --version
+# Update if needed
+```
+
+### Firebase Errors
+**Issue**: `Firebase: Error (auth/configuration-not-found)`
+- Verify all Firebase environment variables are set in `.env`
+- Check that `.env` file is in the `frontend/` directory
+- Restart dev server after changing `.env`
+
+**Issue**: `Missing or insufficient permissions`
+- Deploy Firestore security rules: `firebase deploy --only firestore:rules`
+- Check that user is authenticated before accessing protected routes
+
+### Cloudinary Upload Issues
+**Issue**: Image upload fails
+- Verify Cloudinary credentials in backend `.env`
+- Check that backend functions are deployed
+- Ensure CORS is configured in Cloudinary dashboard
+
+### Common Setup Issues
+**Issue**: `Cannot find module 'firebase'`
+```bash
+cd frontend
+npm install firebase
+```
+
+**Issue**: Port 5173 already in use
+```bash
+# Use different port
+npm run dev -- --port 3000
+```
+
 ## 📝 License
 
-MIT License - See LICENSE file for details
+MIT License - See [LICENSE](./LICENSE) file for details
 
 ## 👥 Contributors
 
 Built for GLA University Lost & Found Portal
 
+## 🤝 Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+
 ---
 
-**Need Help?** Check the guides in `brain/` folder for detailed documentation.
+**Need Help?** Open an issue or check existing documentation in the repository.
+
