@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Mail, Phone, Calendar, CreditCard, Building, ArrowLeft, Edit2, Save, X, Camera, Trash2 } from 'lucide-react';
+import { User, Mail, Phone, Calendar, CreditCard, Building, ArrowLeft, Edit2, Save, X, Camera, Trash2, FileText, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getUserProfile, updateUserProfile, uploadUserDocuments } from '../../services/user.service';
+import { getMyReports, getMyClaims } from '../../services/firestore.service';
 import DocumentUpload from '../../components/auth/DocumentUpload';
 
 const UserProfile = () => {
     const navigate = useNavigate();
     const { user, refreshUser } = useAuth();
     const [profile, setProfile] = useState(null);
+    const [stats, setStats] = useState({ reports: 0, claims: 0 });
     const [isEditing, setIsEditing] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -25,9 +27,17 @@ const UserProfile = () => {
         try {
             setLoading(true);
             if (user) {
-                const data = await getUserProfile(user.uid);
+                const [data, reports, claims] = await Promise.all([
+                    getUserProfile(user.uid),
+                    getMyReports(user.uid),
+                    getMyClaims(user.uid)
+                ]);
                 setProfile(data);
                 setEditData(data || {});
+                setStats({
+                    reports: reports.length,
+                    claims: claims.length
+                });
             }
         } catch (err) {
             setError('Failed to load profile');
@@ -37,6 +47,7 @@ const UserProfile = () => {
     };
 
     const isPhotoDirty = !!(editData.newPhoto || editData.removePhoto);
+
 
     const handlePhotoSelect = (e) => {
         const file = e.target.files[0];
@@ -265,16 +276,43 @@ const UserProfile = () => {
                     </div>
 
                     {/* Account Status */}
-                    <div className="mt-8 p-6 rounded-2xl bg-gradient-to-r from-green-500/10 to-cyan-500/10 border border-green-500/20">
-                        <h3 className="text-lg font-semibold text-white mb-4">Account Status</h3>
-                        <div className="grid md:grid-cols-2 gap-4">
-                            <div className="flex items-center gap-3">
-                                <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                                <span className="text-white/80">Email Verified</span>
+                    {/* Activity Stats */}
+                    <div className="grid md:grid-cols-2 gap-6 mt-6">
+                        <div className="p-6 rounded-2xl bg-gradient-to-r from-green-500/10 to-cyan-500/10 border border-green-500/20">
+                            <h3 className="text-lg font-semibold text-white mb-4">Account Status</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                                    <span className="text-white/80">Email Verified</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                                    <span className="text-white/80">Mobile Verified</span>
+                                </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                                <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                                <span className="text-white/80">Mobile Verified</span>
+                        </div>
+
+                        <div className="p-6 rounded-2xl bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20">
+                            <h3 className="text-lg font-semibold text-white mb-4">My Activity</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-blue-500/20 text-blue-400 rounded-lg">
+                                        <FileText size={20} />
+                                    </div>
+                                    <div>
+                                        <div className="text-2xl font-bold text-white">{stats.reports}</div>
+                                        <div className="text-xs text-white/60 uppercase tracking-wider font-bold">Reports Filed</div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-purple-500/20 text-purple-400 rounded-lg">
+                                        <CheckCircle size={20} />
+                                    </div>
+                                    <div>
+                                        <div className="text-2xl font-bold text-white">{stats.claims}</div>
+                                        <div className="text-xs text-white/60 uppercase tracking-wider font-bold">Claims Made</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

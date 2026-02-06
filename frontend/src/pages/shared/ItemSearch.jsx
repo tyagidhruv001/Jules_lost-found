@@ -144,12 +144,10 @@ const ItemSearch = () => {
                                 <Link to={`/student/items/${item.id}`} key={item.id} className="glass-card group overflow-hidden flex flex-col hover:-translate-y-2 transition-all duration-300">
                                     <div className="h-44 bg-slate-100 dark:bg-slate-800 relative overflow-hidden">
                                         <img src={item.images[0]} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
-                                        <div className={`absolute top-4 left-4 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl backdrop-blur-md ${item.type === 'lost' ? 'bg-red-500/90 text-white' : 'bg-amber-500/90 text-slate-900'}`}>
+                                        <div className={`absolute top-4 left-4 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl backdrop-blur-md ${item.type === 'lost' ? 'bg-red-500/90 text-white' : 'bg-emerald-500 text-white shadow-emerald-500/20'}`}>
                                             {item.type}
                                         </div>
-                                        <div className="absolute bottom-4 right-4 h-10 w-10 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <MessageSquare size={18} />
-                                        </div>
+
                                     </div>
                                     <div className="p-6 flex-1 flex flex-col">
                                         <h4 className="font-bold text-lg mb-1 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{item.title}</h4>

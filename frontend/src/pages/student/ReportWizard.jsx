@@ -23,6 +23,7 @@ const ReportWizard = () => {
     });
     const [error, setError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [createdItemId, setCreatedItemId] = useState(null);
     const { user } = useAuth();
     const navigate = useNavigate();
 
@@ -61,6 +62,7 @@ const ReportWizard = () => {
                 user
             );
             console.log('Item created successfully:', result);
+            setCreatedItemId(result.itemId);
 
             setStep(4); // Success Step
         } catch (err) {
@@ -167,12 +169,33 @@ const ReportWizard = () => {
                                 </div>
                                 <div className="space-y-2">
                                     <label className="label">Last Time Seen</label>
-                                    <input
-                                        type="datetime-local"
-                                        className="input w-full"
-                                        value={formData.lastTimeSeen}
-                                        onChange={e => setFormData(p => ({ ...p, lastTimeSeen: e.target.value }))}
-                                    />
+                                    <div className="flex gap-4">
+                                        <div className="flex-1">
+                                            <input
+                                                type="date"
+                                                className="input w-full"
+                                                value={formData.lastTimeSeen ? formData.lastTimeSeen.split('T')[0] : ''}
+                                                max={new Date().toISOString().split('T')[0]}
+                                                onChange={e => {
+                                                    const date = e.target.value;
+                                                    const time = formData.lastTimeSeen ? formData.lastTimeSeen.split('T')[1] : '12:00';
+                                                    setFormData(p => ({ ...p, lastTimeSeen: `${date}T${time}` }));
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="w-1/3">
+                                            <input
+                                                type="time"
+                                                className="input w-full"
+                                                value={formData.lastTimeSeen ? formData.lastTimeSeen.split('T')[1] : ''}
+                                                onChange={e => {
+                                                    const time = e.target.value;
+                                                    const date = formData.lastTimeSeen ? formData.lastTimeSeen.split('T')[0] : new Date().toISOString().split('T')[0];
+                                                    setFormData(p => ({ ...p, lastTimeSeen: `${date}T${time}` }));
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
                                     <p className="text-[10px] text-slate-500 font-medium">When did you last see this item?</p>
                                 </div>
                                 <div className="space-y-2">
@@ -271,8 +294,25 @@ const ReportWizard = () => {
                                 <CheckCircle size={48} />
                             </div>
                             <h2 className="text-3xl font-black uppercase tracking-tight">Report Published</h2>
-                            <p className="text-slate-500 font-medium max-w-xs">Your item has been logged into the global database. Our AI is now searching for potential matches.</p>
-                            <div className="pt-10 w-full space-y-4">
+                            <p className="text-slate-500 font-medium max-w-xs mb-6">Your item has been logged into the global database. Our AI is now searching for potential matches.</p>
+
+                            {/* Security UX: Display Report ID */}
+                            {createdItemId && (
+                                <div onClick={() => navigator.clipboard.writeText(createdItemId)} className="cursor-pointer group relative mb-6">
+                                    <div className="bg-slate-100 dark:bg-slate-800 px-6 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Generated Report ID</p>
+                                        <div className="flex items-center justify-center gap-2">
+                                            <code className="text-xl font-mono font-black text-slate-700 dark:text-slate-200">{createdItemId}</code>
+                                            <span className="text-xs font-bold text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity uppercase">Copy</span>
+                                        </div>
+                                    </div>
+                                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-green-500 text-white text-[10px] font-bold uppercase tracking-widest rounded-full opacity-0 group-active:opacity-100 transition-opacity">
+                                        Copied!
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="pt-4 w-full space-y-4">
                                 <button onClick={() => navigate('/student/dashboard')} className="btn btn-primary w-full py-4 font-black uppercase tracking-widest">Return to Dashboard</button>
                                 <button onClick={() => setStep(1)} className="text-xs font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 transition-colors">Start New Report</button>
                             </div>
