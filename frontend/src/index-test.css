@@ -1,0 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.test-class {
+    @apply flex items-center justify-center p-10 bg-red-500 text-white;
+}

@@ -5,11 +5,13 @@ import {
     getDoc,
     getDocs,
     updateDoc,
+    increment,
     query,
     where,
     orderBy,
     limit,
-    serverTimestamp
+    serverTimestamp,
+    deleteDoc
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { uploadMultipleImagesDirect } from './cloudinary.service';
@@ -101,16 +103,32 @@ export const getItems = async (filters = {}) => {
         }
 
         // Order by creation date (newest first)
-        // NOTE: Temporarily disabled to avoid composite index requirement
-        // Firebase needs a composite index for: status + orderBy(createdAt)
-        // q = query(q, orderBy('createdAt', 'desc'));
+        // We try to use DB sorting first, but fallback to client-side if index is missing
+        let qOptimized = query(q, orderBy('createdAt', 'desc'));
 
-        // Limit results
+        // Apply limit if requested
         if (filters.limit) {
+            qOptimized = query(qOptimized, limit(filters.limit));
             q = query(q, limit(filters.limit));
         }
 
-        const querySnapshot = await getDocs(q);
+        let querySnapshot;
+        let sortedByDb = true;
+
+        try {
+            // Try to execute the optimized query
+            querySnapshot = await getDocs(qOptimized);
+        } catch (err) {
+            // Check if error is due to missing index
+            if (err.code === 'failed-precondition') {
+                console.warn('⚠️ Missing Firestore index for ordered query. Falling back to client-side sorting.', err.message);
+                // Fallback to original query without orderBy
+                querySnapshot = await getDocs(q);
+                sortedByDb = false;
+            } else {
+                throw err;
+            }
+        }
         const items = [];
 
         querySnapshot.forEach((doc) => {
@@ -120,13 +138,14 @@ export const getItems = async (filters = {}) => {
             });
         });
 
-        // Sort in memory by createdAt (newest first)
-        items.sort((a, b) => {
-            const aTime = a.createdAt?.toDate?.() || new Date(0);
-            const bTime = b.createdAt?.toDate?.() || new Date(0);
-            return bTime - aTime;
-        });
-
+        // Sort in memory only if DB sort failed
+        if (!sortedByDb) {
+            items.sort((a, b) => {
+                const aTime = a.createdAt?.toDate?.() || new Date(0);
+                const bTime = b.createdAt?.toDate?.() || new Date(0);
+                return bTime - aTime;
+            });
+        }
         return items;
     } catch (error) {
         console.error('Error fetching items:', error);
@@ -181,16 +200,26 @@ export const updateItemStatus = async (itemId, status) => {
 export const incrementItemViews = async (itemId) => {
     try {
         const itemRef = doc(db, ITEMS_COLLECTION, itemId);
-        const itemDoc = await getDoc(itemRef);
 
-        if (itemDoc.exists()) {
-            const currentViews = itemDoc.data().views || 0;
-            await updateDoc(itemRef, {
-                views: currentViews + 1
-            });
-        }
+        await updateDoc(itemRef, {
+            views: increment(1)
+        });
     } catch (error) {
         console.error('Error incrementing views:', error);
+    }
+};
+
+/**
+ * Delete an item
+ */
+export const deleteItem = async (itemId) => {
+    try {
+        const itemRef = doc(db, ITEMS_COLLECTION, itemId);
+        await deleteDoc(itemRef);
+        return { success: true };
+    } catch (error) {
+        console.error('Error deleting item:', error);
+        throw new Error('Failed to delete item');
     }
 };
 
@@ -200,5 +229,6 @@ export default {
     getItems,
     getItemById,
     updateItemStatus,
-    incrementItemViews
+    incrementItemViews,
+    deleteItem
 };

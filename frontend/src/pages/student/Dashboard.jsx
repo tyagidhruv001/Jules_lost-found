@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Layout } from '../../components/layout/Layout';
 import { getItems } from '../../services/items.service';
+import { getMatchRecommendations } from '../../services/matching.service';
 import { FileText, Zap, Shield, Search, ArrowRight, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -16,6 +17,7 @@ const StudentDashboard = () => {
         { label: 'Total Items', value: '0', icon: <Search size={20} />, color: 'purple' },
         { label: 'Active', value: '0', icon: <Zap size={20} />, color: 'pink' },
     ]);
+    const [matches, setMatches] = useState([]);
     const [recentItems, setRecentItems] = useState([]);
     const [myReports, setMyReports] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -43,6 +45,18 @@ const StudentDashboard = () => {
 
                 setMyReports(userReports);
                 setRecentItems(othersItems);
+
+                console.log('DEBUG DASHBOARD:', {
+                    currentUser: user?.uid,
+                    firstItemReporter: allItems[0]?.reportedBy,
+                    isMatch: allItems[0]?.reportedBy?.uid === user?.uid,
+                    allItemsCount: allItems.length,
+                    userReportsCount: userReports.length
+                });
+
+                // Check for matches
+                const recommendations = await getMatchRecommendations(2);
+                setMatches(recommendations);
 
                 // Calculate stats
                 setStats([
@@ -96,6 +110,28 @@ const StudentDashboard = () => {
                         Refresh Data
                     </button>
                 </div>
+
+                {/* Auto-Match Banner */}
+                {matches.length > 0 && (
+                    <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-2xl p-6 flex items-center justify-between gap-6 animate-pulse-slow">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-amber-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20">
+                                <Zap size={24} fill="currentColor" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-black uppercase tracking-tight text-amber-500">
+                                    {matches.length} Possible {matches.length === 1 ? 'Match' : 'Matches'} Found
+                                </h3>
+                                <p className="text-slate-400 font-medium text-sm">
+                                    We found items that similar to your lost report for <span className="text-white font-bold">"{matches[0].lostItem.title}"</span>.
+                                </p>
+                            </div>
+                        </div>
+                        <Link to={`/student/items/${matches[0].foundItem.id}`} className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-slate-900 font-black uppercase tracking-widest rounded-xl transition-all shadow-lg hover:shadow-amber-500/20 whitespace-nowrap">
+                            View Match
+                        </Link>
+                    </div>
+                )}
 
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -158,15 +194,17 @@ const StudentDashboard = () => {
                                             </div>
                                             <div className="p-4">
                                                 <h5 className="font-bold text-sm mb-1 truncate text-white">{item.title}</h5>
-                                                <p className="text-xs text-white/40 flex items-center gap-1 truncate">
+                                                <p className="text-xs text-white/40 flex items-center gap-1 truncate mb-2">
                                                     <Search size={12} className="text-cyan-400 flex-shrink-0" /> {item.location}
                                                 </p>
-                                                <p className="text-xs text-white/30 flex items-center gap-1 mt-1">
-                                                    <Clock size={12} className="flex-shrink-0" /> {item.createdAt?.toDate ? new Date(item.createdAt.toDate()).toLocaleDateString() : 'Recently'}
-                                                </p>
+                                                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-white/30 border-t border-white/5 pt-2">
+                                                    <span>{item.createdAt?.toDate ? new Date(item.createdAt.toDate()).toLocaleDateString() : 'Recently'}</span>
+                                                    <span className="text-cyan-400/80">You</span>
+                                                </div>
                                             </div>
                                         </div>
-                                    ))}
+                                    ))
+                                    }
                                 </div>
                             )}
                         </div>
@@ -174,7 +212,7 @@ const StudentDashboard = () => {
                         {/* Recent Opportunities */}
                         <div>
                             <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-xl font-bold bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">Recent Opportunities</h3>
+                                <h3 className="text-xl font-bold bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">Recent Activities</h3>
                                 <Link to="/student/search" className="text-cyan-400 font-bold text-sm flex items-center gap-2 hover:gap-3 transition-all hover:text-cyan-300">
                                     View All <ArrowRight size={16} />
                                 </Link>
@@ -204,12 +242,13 @@ const StudentDashboard = () => {
                                         </div>
                                         <div className="p-4">
                                             <h5 className="font-bold text-sm mb-1 truncate text-white">{item.title}</h5>
-                                            <p className="text-xs text-white/40 flex items-center gap-1 truncate">
+                                            <p className="text-xs text-white/40 flex items-center gap-1 truncate mb-2">
                                                 <Search size={12} className="text-cyan-400 flex-shrink-0" /> {item.location}
                                             </p>
-                                            <p className="text-xs text-white/30 flex items-center gap-1 mt-1">
-                                                <Clock size={12} className="flex-shrink-0" /> By {item.reportedBy?.name || 'User'}
-                                            </p>
+                                            <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-white/30 border-t border-white/5 pt-2">
+                                                <span>{item.createdAt?.toDate ? new Date(item.createdAt.toDate()).toLocaleDateString() : 'Recently'}</span>
+                                                <span className="text-cyan-400/80">By {item.reportedBy?.name || 'User'}</span>
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
@@ -250,7 +289,7 @@ const StudentDashboard = () => {
                     </div>
                 </div>
             </div>
-        </Layout>
+        </Layout >
     );
 };
 

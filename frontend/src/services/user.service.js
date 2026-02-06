@@ -7,6 +7,7 @@ import {
     query,
     where,
     getDocs,
+    getCountFromServer,
     serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -64,25 +65,31 @@ export const uploadUserDocuments = async (userId, idCardFile, profilePhotoFile) 
     try {
         const uploads = {};
 
+        const uploadPromises = [];
+
         // Upload ID card
         if (idCardFile) {
-            const idCardResult = await uploadImageDirect(
+            uploadPromises.push(uploadImageDirect(
                 idCardFile,
                 `users/${userId}/documents`
-            );
-            uploads.idCardUrl = idCardResult.url;
-            uploads.idCardPublicId = idCardResult.publicId;
+            ).then(idCardResult => {
+                uploads.idCardUrl = idCardResult.url;
+                uploads.idCardPublicId = idCardResult.publicId;
+            }));
         }
 
         // Upload profile photo
         if (profilePhotoFile) {
-            const profileResult = await uploadImageDirect(
+            uploadPromises.push(uploadImageDirect(
                 profilePhotoFile,
                 `users/${userId}/profile`
-            );
-            uploads.profilePhotoUrl = profileResult.url;
-            uploads.profilePhotoPublicId = profileResult.publicId;
+            ).then(profileResult => {
+                uploads.profilePhotoUrl = profileResult.url;
+                uploads.profilePhotoPublicId = profileResult.publicId;
+            }));
         }
+
+        await Promise.all(uploadPromises);
 
         // Update user document with image URLs
         const userRef = doc(db, COLLECTIONS.USERS, userId);
@@ -123,15 +130,18 @@ export const sendOTP = async (userId, type, contact, name = 'User') => {
 
         // Send OTP to requested channels
         const channels = Array.isArray(type) ? type : [type];
+        const promises = [];
 
         for (const channel of channels) {
             const targetContact = typeof contact === 'object' ? contact[channel] : contact;
             if (channel === 'email') {
-                await sendEmailOTPHelper(targetContact, otp, name);
+                promises.push(sendEmailOTPHelper(targetContact, otp, name));
             } else if (channel === 'mobile') {
-                await sendMobileOTPHelper(targetContact, otp, name);
+                promises.push(sendMobileOTPHelper(targetContact, otp, name));
             }
         }
+
+        await Promise.all(promises);
 
         return {
             success: true,
@@ -275,8 +285,8 @@ export const checkIdentifierExists = async (identifier, role) => {
             where('role', '==', role)
         );
 
-        const querySnapshot = await getDocs(q);
-        return !querySnapshot.empty;
+        const snapshot = await getCountFromServer(q);
+        return snapshot.data().count > 0;
     } catch (error) {
         console.error('Error checking identifier:', error);
         return false;
