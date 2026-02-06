@@ -45,6 +45,9 @@ const getColorForCategory = (category) => {
 const Landing = () => {
     const navigate = useNavigate();
 
+    // State for mobile menu
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
     // State for latest activity
     const [latestActivity, setLatestActivity] = useState([]);
 
@@ -165,12 +168,49 @@ const Landing = () => {
                             Get Started
                         </button>
                     </div>
-                    <button className="md:hidden px-4 py-2 rounded-full glass-card border border-white/20 hover:border-white/40 transition">
+                    <button
+                        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                        className="md:hidden px-4 py-2 rounded-full glass-card border border-white/20 hover:border-white/40 transition"
+                    >
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                            {isMobileMenuOpen ? (
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            ) : (
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                            )}
                         </svg>
                     </button>
                 </nav>
+
+                {/* Mobile Menu Dropdown */}
+                {isMobileMenuOpen && (
+                    <div className="md:hidden absolute top-full left-0 right-0 glass-card border-t border-white/10 py-4 px-6 space-y-4 animate-fade-in">
+                        <button
+                            onClick={() => { scrollToSection('about'); setIsMobileMenuOpen(false); }}
+                            className="block w-full text-left text-sm font-medium text-white/80 hover:text-cyan-300 transition-colors duration-200 py-2"
+                        >
+                            About
+                        </button>
+                        <button
+                            onClick={() => { scrollToSection('features'); setIsMobileMenuOpen(false); }}
+                            className="block w-full text-left text-sm font-medium text-white/80 hover:text-cyan-300 transition-colors duration-200 py-2"
+                        >
+                            Features
+                        </button>
+                        <button
+                            onClick={() => { scrollToSection('how-it-works'); setIsMobileMenuOpen(false); }}
+                            className="block w-full text-left text-sm font-medium text-white/80 hover:text-cyan-300 transition-colors duration-200 py-2"
+                        >
+                            How It Works
+                        </button>
+                        <button
+                            onClick={() => { handleGetStarted(); setIsMobileMenuOpen(false); }}
+                            className="w-full px-5 py-2.5 rounded-full glass-card glow-card font-medium text-sm hover:scale-105 transition-transform duration-200 border border-white/20 hover:border-cyan-300/50 text-center"
+                        >
+                            Get Started
+                        </button>
+                    </div>
+                )}
             </header>
 
             <main className="relative z-10">
