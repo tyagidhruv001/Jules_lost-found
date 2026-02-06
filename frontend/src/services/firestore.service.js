@@ -326,6 +326,35 @@ export const verifyClaim = async (claimId, decision, note) => {
     }
 };
 
+// Get user's claims
+export const getMyClaims = async (userId) => {
+    try {
+        const claimsRef = collection(db, COLLECTIONS.CLAIMS);
+        const q = query(
+            claimsRef,
+            where('claimantId', '==', userId),
+            orderBy('createdAt', 'desc')
+        );
+
+        const querySnapshot = await getDocs(q);
+        const claims = [];
+
+        querySnapshot.forEach((doc) => {
+            claims.push({
+                id: doc.id,
+                ...doc.data(),
+                createdAt: doc.data().createdAt?.toDate(),
+                updatedAt: doc.data().updatedAt?.toDate()
+            });
+        });
+
+        return claims;
+    } catch (error) {
+        console.error('Error fetching user claims:', error);
+        return [];
+    }
+};
+
 export default {
     getLatestActivity,
     createItem,
@@ -333,6 +362,7 @@ export default {
     getItemById,
     updateItemStatus,
     getMyReports,
+    getMyClaims,
     createClaim,
     getPendingClaims,
     verifyClaim

@@ -51,8 +51,10 @@ export const Layout = ({ children }) => {
                         <Shield size={24} />
                     </div>
                     <div>
-                        <span className="block font-black text-xl tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-white">GLA PORTAL</span>
-                        <span className="block text-[8px] font-black uppercase tracking-[0.2em] text-white/40">Integrated Asset Logic</span>
+                        <span className="block font-black text-xl tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-white">L&F Portal</span>
+                        <span className="block text-[10px] uppercase tracking-widest text-slate-400 font-bold mt-0.5">
+                            {user?.role === 'faculty' ? 'Faculty Corner' : 'Student Corner'}
+                        </span>
                     </div>
                 </div>
 
@@ -98,7 +100,7 @@ export const Layout = ({ children }) => {
 
             {/* Mobile Nav Top Bar */}
             <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white/5 backdrop-blur-lg border-b border-white/10 px-6 flex items-center justify-between z-40">
-                <div className="font-black text-sm uppercase tracking-widest text-cyan-400">GLA PORTAL</div>
+                <div className="font-black text-sm uppercase tracking-widest text-cyan-400">L&F Portal</div>
                 <div className="flex items-center gap-4">
                     <button onClick={() => setIsSidebarOpen(true)} className="p-2 bg-white/5 rounded-xl text-white">
                         <Menu size={24} />
@@ -145,16 +147,12 @@ export const Layout = ({ children }) => {
                 {/* Header - Desktop Only */}
                 <header className="hidden lg:flex h-24 px-12 items-center justify-between sticky top-0 bg-black/10 backdrop-blur-lg z-30">
                     <div>
-                        <h2 className="font-black text-sm uppercase tracking-[0.2em] text-white/40">Protocol Layer</h2>
+
                         <h3 className="font-black text-lg uppercase tracking-tight text-white mt-1">
                             {links.find(l => window.location.pathname.includes(l.to))?.label || 'Overview Area'}
                         </h3>
                     </div>
                     <div className="flex items-center gap-4">
-                        <button className="p-3.5 bg-white/5 border border-white/10 rounded-2xl shadow-sm relative hover:scale-105 active:scale-95 transition-all text-cyan-400">
-                            <Bell size={20} />
-                            <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-cyan-500 rounded-full border-2 border-slate-900 animate-pulse"></span>
-                        </button>
                         <div className="h-10 w-[1px] bg-white/10 mx-2"></div>
                         <div className="flex items-center gap-3 pl-2 text-white">
                             <div className="text-right">

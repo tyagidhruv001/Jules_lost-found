@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '../../components/layout/Layout';
-import { api } from '../../services/api';
+import { getItemById, deleteItem } from '../../services/items.service';
+import { createClaim } from '../../services/firestore.service';
 import { useAuth } from '../../context/AuthContext';
 import {
     Calendar, MapPin, Tag, User,
     MessageCircle, Shield, ArrowLeft,
-    CheckCircle, Clock, AlertTriangle, Send, Package
+    CheckCircle, Clock, AlertTriangle, Send, Package, Trash2
 } from 'lucide-react';
 
 const ItemDetails = () => {
@@ -22,7 +23,7 @@ const ItemDetails = () => {
     useEffect(() => {
         const loadItem = async () => {
             try {
-                const data = await api.getItemById(id);
+                const data = await getItemById(id);
                 if (!data) return navigate(-1);
                 setItem(data);
             } catch (err) {
@@ -35,18 +36,30 @@ const ItemDetails = () => {
         loadItem();
     }, [id, navigate]);
 
+    const handleDelete = async () => {
+        if (window.confirm('Are you sure you want to delete this report? This action cannot be undone.')) {
+            try {
+                await deleteItem(id);
+                navigate('/student/dashboard');
+            } catch (err) {
+                console.error('Failed to delete:', err);
+                alert('Failed to delete item');
+            }
+        }
+    };
+
     const handleClaim = async (e) => {
         e.preventDefault();
         setIsClaiming(true);
         try {
-            await api.createClaim(id, {
-                claimantId: user.id,
+            await createClaim(id, {
+                claimantId: user.uid,
                 message: claimMessage,
                 trustScore: 75
             });
             setShowClaimModal(false);
             // Refresh item to show claimed status
-            const updated = await api.getItemById(id);
+            const updated = await getItemById(id);
             setItem(updated);
         } catch (err) {
             console.error(err);
@@ -105,7 +118,7 @@ const ItemDetails = () => {
                         <div className="grid grid-cols-2 gap-8">
                             {[
                                 { icon: <MapPin className="text-blue-600" />, label: 'Location', value: item.location },
-                                { icon: <Calendar className="text-amber-500" />, label: 'Reported Date', value: item.date },
+                                { icon: <Calendar className="text-amber-500" />, label: 'Reported Date', value: item.createdAt?.toDate ? new Date(item.createdAt.toDate()).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Pending' },
                                 { icon: <Tag className="text-emerald-500" />, label: 'Category', value: item.category },
                                 { icon: <User className="text-indigo-500" />, label: 'Color Detail', value: item.color }
                             ].map((detail, idx) => (
@@ -119,13 +132,52 @@ const ItemDetails = () => {
                         </div>
 
                         <div className="pt-8 border-t border-slate-200 dark:border-slate-800">
-                            {user.role === 'student' && item.status === 'open' && (
+                            {/* Security UX: Report ID */}
+                            <div className="mb-6 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Report ID (Security Reference)</p>
+                                    <code className="text-sm font-mono font-bold text-slate-600 dark:text-slate-300 select-all">{item.id}</code>
+                                </div>
                                 <button
-                                    onClick={() => setShowClaimModal(true)}
-                                    className="btn btn-primary w-full py-5 text-lg font-black uppercase tracking-widest shadow-2xl shadow-blue-500/20"
+                                    onClick={() => navigator.clipboard.writeText(item.id)}
+                                    className="p-2 text-slate-400 hover:text-blue-500 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                    title="Copy Report ID"
                                 >
-                                    Initiate Claim Request
+                                    <span className="text-xs font-bold uppercase">Copy</span>
                                 </button>
+                            </div>
+
+                            {user.role === 'student' && (item.status === 'open' || item.status === 'active') && (
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-2 text-emerald-500 font-bold text-xs uppercase tracking-widest px-1">
+                                        <CheckCircle size={14} />
+                                        <span>Available for Claim</span>
+                                    </div>
+                                    <button
+                                        onClick={() => setShowClaimModal(true)}
+                                        className="w-full py-5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-2xl shadow-emerald-500/30 border border-emerald-400/20 group transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                                    >
+                                        <div className="flex items-center justify-center gap-3">
+                                            <Shield size={24} className="group-hover:rotate-12 transition-transform" />
+                                            <span className="text-lg font-black uppercase tracking-widest">Initiate Claim Request</span>
+                                        </div>
+                                    </button>
+                                    <p className="text-center text-xs text-slate-400 font-medium px-4">
+                                        By clicking this, you assert ownership of this item. Faculty will verify your claim.
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Owner Actions */}
+                            {user.uid === item.reportedBy?.uid && (
+                                <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+                                    <button
+                                        onClick={handleDelete}
+                                        className="w-full py-4 rounded-xl border-2 border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-all font-bold uppercase tracking-widest flex items-center justify-center gap-2"
+                                    >
+                                        <Trash2 size={18} /> Delete Report
+                                    </button>
+                                </div>
                             )}
 
                             {item.status !== 'open' && (

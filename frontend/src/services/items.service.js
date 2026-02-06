@@ -9,7 +9,8 @@ import {
     where,
     orderBy,
     limit,
-    serverTimestamp
+    serverTimestamp,
+    deleteDoc
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { uploadMultipleImagesDirect } from './cloudinary.service';
@@ -194,11 +195,26 @@ export const incrementItemViews = async (itemId) => {
     }
 };
 
+/**
+ * Delete an item
+ */
+export const deleteItem = async (itemId) => {
+    try {
+        const itemRef = doc(db, ITEMS_COLLECTION, itemId);
+        await deleteDoc(itemRef);
+        return { success: true };
+    } catch (error) {
+        console.error('Error deleting item:', error);
+        throw new Error('Failed to delete item');
+    }
+};
+
 export default {
     createItem,
     uploadItemImages,
     getItems,
     getItemById,
     updateItemStatus,
-    incrementItemViews
+    incrementItemViews,
+    deleteItem
 };
