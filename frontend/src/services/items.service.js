@@ -102,17 +102,12 @@ export const getItems = async (filters = {}) => {
             q = query(q, where('reportedBy.uid', '==', filters.reportedBy));
         }
 
-<<<<<<< HEAD
         // Order by creation date (newest first)
         // We try to use DB sorting first, but fallback to client-side if index is missing
         let qOptimized = query(q, orderBy('createdAt', 'desc'));
-=======
-        let querySnapshot;
->>>>>>> technavya-remote/pull/12
 
-        // Apply ordering and limit if a limit is requested
+        // Apply limit if requested
         if (filters.limit) {
-<<<<<<< HEAD
             qOptimized = query(qOptimized, limit(filters.limit));
             q = query(q, limit(filters.limit));
         }
@@ -126,7 +121,7 @@ export const getItems = async (filters = {}) => {
         } catch (err) {
             // Check if error is due to missing index
             if (err.code === 'failed-precondition') {
-                console.warn('Firestore index missing. Falling back to client-side sorting. Please create the index using the link in the error message:', err.message);
+                console.warn('⚠️ Missing Firestore index for ordered query. Falling back to client-side sorting.', err.message);
                 // Fallback to original query without orderBy
                 querySnapshot = await getDocs(q);
                 sortedByDb = false;
@@ -134,31 +129,6 @@ export const getItems = async (filters = {}) => {
                 throw err;
             }
         }
-
-=======
-            // Attempt to use orderBy with limit
-            const qWithOrder = query(q, orderBy('createdAt', 'desc'), limit(filters.limit));
-
-            try {
-                querySnapshot = await getDocs(qWithOrder);
-            } catch (error) {
-                // Check for missing index error (failed-precondition)
-                if (error.code === 'failed-precondition') {
-                    console.warn('Composite index missing. Falling back to unordered limited fetch.', error.message);
-                    // Fallback: apply limit without ordering (may return random items)
-                    const qLimited = query(q, limit(filters.limit));
-                    querySnapshot = await getDocs(qLimited);
-                } else {
-                    throw error;
-                }
-            }
-        } else {
-            // No limit requested: fetch all matching items (unordered)
-            // We sort in memory below, so database ordering is not strictly required
-            // and avoiding it prevents index errors/latency for general queries
-            querySnapshot = await getDocs(q);
-        }
->>>>>>> technavya-remote/pull/12
         const items = [];
 
         querySnapshot.forEach((doc) => {
