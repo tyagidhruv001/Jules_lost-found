@@ -65,6 +65,8 @@ const extractKeywords = (text) => {
     return new Set(words);
 };
 
+const BUILDING_REGEX = /(library|academic|hostel|cafeteria|sports|lab|block [a-d])/i;
+
 /**
  * Extract building/area from location string
  */
